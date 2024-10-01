@@ -1,16 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 )
-
-/* this stuff was all for the initial commit of the tutorial
-* it includes writing to a text file and outputting that file on the cmd line
- */
 
 // this is the data structure of a single page
 type Page struct {
@@ -35,11 +30,24 @@ func loadPage(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
-// this function loads urls prefixed with a pattern
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+	dir := "templates/"
+	t, _ := template.ParseFiles(dir + tmpl + ".html")
+	err := t.Execute(w, p)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+// this function loads urls prefixed with the /view/ pattern
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/view/"):]
-	p, _ := loadPage(title)
-	fmt.Fprintf(w, "<h1>%s</h1><div>%s</div>", p.Title, p.Body)
+	p, err := loadPage(title)
+	if err != nil {
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+		return
+	}
+	renderTemplate(w, "view", p)
 }
 
 // this function allows us to create and edit pages
@@ -49,13 +57,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &Page{Title: title}
 	}
-	dir := "templates/"
-	log.Print(dir + "edit.html")
-	t, _ := template.ParseFiles(dir + "edit.html")
-	err = t.Execute(w, p)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	renderTemplate(w, "edit", p)
 }
 
 func main() {
